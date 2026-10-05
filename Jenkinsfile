@@ -31,5 +31,35 @@ pipeline {
                 }
             }
         }
+
+        stage('4 - Maven test') {
+            steps {
+                dir('backend') {
+                    sh 'mvn -B test'
+                }
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: 'backend/target/surefire-reports/*.xml'
+                }
+            }
+        }
+
+        stage('5 - Maven package') {
+            steps {
+                dir('backend') {
+                    sh 'mvn -B package -DskipTests'
+                }
+            }
+        }
+
+        stage('6 - Maven deploy') {
+            steps {
+                dir('backend') {
+                    sh 'mvn -B deploy -DskipTests -DaltDeploymentRepository=local::file:/var/lib/jenkins/local-repo'
+                }
+                archiveArtifacts artifacts: 'backend/target/*.jar', fingerprint: true
+            }
+        }
     }
 }
