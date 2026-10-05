@@ -108,8 +108,8 @@ pipeline {
 
         stage('8 - Docker compose up') {
             steps {
-                sh 'DOCKER_IMAGE=$IMAGE_NAME:$IMAGE_TAG FRONTEND_IMAGE=$FRONT_IMAGE:$IMAGE_TAG docker compose up -d'
-                sh 'docker compose ps'
+                sh 'DOCKER_IMAGE=$IMAGE_NAME:$IMAGE_TAG FRONTEND_IMAGE=$FRONT_IMAGE:$IMAGE_TAG docker compose -p projets up -d'
+                sh 'docker compose -p projets ps'
             }
         }
     }
