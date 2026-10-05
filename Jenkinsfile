@@ -1,8 +1,15 @@
 pipeline {
     agent any
 
+    parameters {
+        booleanParam(name: 'PUSH_IMAGE', defaultValue: false, description: 'Push de l image sur Docker Hub')
+    }
+
     environment {
-        SONAR_URL = 'http://localhost:9000'
+        SONAR_URL      = 'http://localhost:9000'
+        DOCKERHUB_USER = 'siko0711'
+        IMAGE_NAME     = "${DOCKERHUB_USER}/projets-backend"
+        IMAGE_TAG      = "${BUILD_NUMBER}"
     }
 
     stages {
@@ -59,6 +66,31 @@ pipeline {
                     sh 'mvn -B deploy -DskipTests -DaltDeploymentRepository=local::file:/var/lib/jenkins/local-repo'
                 }
                 archiveArtifacts artifacts: 'backend/target/*.jar', fingerprint: true
+            }
+        }
+
+        stage('7 - Docker image') {
+            steps {
+                dir('backend') {
+                    sh 'docker build -t $IMAGE_NAME:$IMAGE_TAG -t $IMAGE_NAME:latest .'
+                }
+                script {
+                    if (params.PUSH_IMAGE) {
+                        withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
+                                usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
+                            sh 'echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin'
+                            sh 'docker push $IMAGE_NAME:$IMAGE_TAG'
+                            sh 'docker push $IMAGE_NAME:latest'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('8 - Docker compose up') {
+            steps {
+                sh 'DOCKER_IMAGE=$IMAGE_NAME:$IMAGE_TAG docker compose up -d'
+                sh 'docker compose ps'
             }
         }
     }
