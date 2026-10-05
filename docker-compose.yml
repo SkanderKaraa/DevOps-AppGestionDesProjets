@@ -25,5 +25,49 @@ services:
       - "8082:8080"
     restart: on-failure
 
+  frontend:
+    image: ${FRONTEND_IMAGE:-projets-frontend:latest}
+    depends_on:
+      - backend
+    ports:
+      - "4200:80"
+    restart: on-failure
+
+volumes:
+  mysql_data:1~services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: test_db
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  backend:
+    image: ${DOCKER_IMAGE:-projets-backend:latest}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/test_db?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    ports:
+      - "8082:8080"
+    restart: on-failure
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-projets-frontend:latest}
+    depends_on:
+      - backend
+    ports:
+      - "4200:80"
+    restart: on-failure
+
 volumes:
   mysql_data:

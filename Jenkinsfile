@@ -2,13 +2,14 @@ pipeline {
     agent any
 
     parameters {
-        booleanParam(name: 'PUSH_IMAGE', defaultValue: true, description: 'Push de l image sur Docker Hub')
+        booleanParam(name: 'PUSH_IMAGE', defaultValue: true, description: 'Push des images sur Docker Hub')
     }
 
     environment {
         SONAR_URL      = 'http://localhost:9000'
         DOCKERHUB_USER = 'siko0711'
         IMAGE_NAME     = "${DOCKERHUB_USER}/projets-backend"
+        FRONT_IMAGE    = "${DOCKERHUB_USER}/projets-frontend"
         IMAGE_TAG      = "${BUILD_NUMBER}"
     }
 
@@ -69,7 +70,7 @@ pipeline {
             }
         }
 
-        stage('7 - Docker image') {
+        stage('7 - Docker image backend') {
             steps {
                 dir('backend') {
                     sh 'docker build -t $IMAGE_NAME:$IMAGE_TAG -t $IMAGE_NAME:latest .'
@@ -87,9 +88,27 @@ pipeline {
             }
         }
 
+        stage('7b - Docker image frontend') {
+            steps {
+                dir('frontend') {
+                    sh 'docker build -t $FRONT_IMAGE:$IMAGE_TAG -t $FRONT_IMAGE:latest .'
+                }
+                script {
+                    if (params.PUSH_IMAGE) {
+                        withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
+                                usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
+                            sh 'echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin'
+                            sh 'docker push $FRONT_IMAGE:$IMAGE_TAG'
+                            sh 'docker push $FRONT_IMAGE:latest'
+                        }
+                    }
+                }
+            }
+        }
+
         stage('8 - Docker compose up') {
             steps {
-                sh 'DOCKER_IMAGE=$IMAGE_NAME:$IMAGE_TAG docker compose up -d'
+                sh 'DOCKER_IMAGE=$IMAGE_NAME:$IMAGE_TAG FRONTEND_IMAGE=$FRONT_IMAGE:$IMAGE_TAG docker compose up -d'
                 sh 'docker compose ps'
             }
         }
